@@ -1,0 +1,605 @@
+function cat12_loc_models(TPMname, sample, batch_model, measure, factor, covariates, interaction);
+    %
+    % This function was written by Alaina Pearce in the Spring of 2023 to
+    % run 2nd level models looking at LOC in the compiled structural data.
+    % All structural data has previously been preprocessed in Processed
+    % directory.
+    
+    % 
+    %     Copyright (C) 2023 Alaina Pearce
+    % 
+    %     This program is free software: you can redistribute it and/or modify
+    %     it under the terms of the GNU General Public License as published by
+    %     the Free Software Foundation, either version 3 of the License, or
+    %     (at your option) any later version.
+    % 
+    %     This program is distributed in the hope that it will be useful,
+    %     but WITHOUT ANY WARRANTY; without even the implied warranty of
+    %     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    %     GNU General Public License for more details.
+    % 
+    %     You should have received a copy of the GNU General Public License
+    %     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    
+    % TPMname: TPM name
+    %
+    % batch_model: model you want to run - 2sampleT, ANOVA, Reg -
+    % needs to correspond to the name used in the batch template
+    %
+    % measure: structural outcome - volume, corticalthickness, SD, GI, or
+    % complexity
+    %
+    % factor: if running 2sampleT or ANOVA, this is primary factor (other
+    % can be added as covariates or interaction)
+    %
+    % covariates: a structure array with list of covariates - {'age'
+    % 'sex'}; need to have curly brackets when you enter it
+    %
+    % interaction: for ANOVA and 2sampleT this is variable you want to
+    % interact with the factor; for Reg this is the variable you want to
+    % interacti with first non-TIV covariate
+    
+    % ==========================================================================================================
+    %                                          Preludes: settings, inputs, etc.
+    % ==========================================================================================================
+    % suppress warning    
+    warning('off','MATLAB:prnRenderer:opengl');
+    warning('off', 'MATLAB:hg:AutoSoftwareOpenGL');
+    
+    %for debugging
+    %TPM_name = 'all';
+    
+    %set initial path structures
+    %!need to edit this section (and all paths) if move script or any directories it calls!
+
+    %get working directory path for where this script is saved
+    %(individual path info '/Box Sync/b-childfoodlab Shared/MRIstruct/Scripts')
+    scriptfile_wd = mfilename('fullpath');
+
+%    if ismac()
+%        slash = '/';
+%    else 
+%        slash = '\';
+%    end
+    
+    %for us on the computing cluster:
+    slash = '/';
+
+    %get location/character number for '/" in file path
+    slashloc_wd=find(scriptfile_wd==slash);
+
+    %%addpath for spm - work desktop path only
+    spm_wd = [scriptfile_wd(1:slashloc_wd(end-4)) slash 'spm12'];
+    addpath(genpath(spm_wd));
+    
+    %%addpath for cluster only
+    %addpath(('/storage/home/azp271/SPM/spm12'))
+    
+    %use all characters in path name upto the second to last slash (individual path info
+    %'/Box Sync/b-childfoodlab Shared/RO1_Brain_Mechanisms_IRB_5357/MRIstruct/LOCstructural)
+    base_wd = scriptfile_wd(1:slashloc_wd(end-1));
+    derivatives_wd = [scriptfile_wd(1:slashloc_wd(end-3)) slash 'derivatives' slash 'cat12.8.2_2170'] ;
+    
+    %this will tell matlab to look at all files withing the base_wd/CAT--so any
+    %subfolder will be added to search path
+    result_main_folder=[base_wd slash 'cat12_models'];
+
+    %get matlab batch string
+    if ismember('tiv', covariates) || ismember('TIV', covariates) || ~strcmp(measure, 'volume')
+        cat12_loc_batch = [base_wd slash 'code' slash 'cat12_loc_' char(batch_model) '_batchtemplate.mat'];
+    else
+        cat12_loc_batch = [base_wd slash 'code' slash 'cat12_loc_' char(batch_model) '_tiv-scale_batchtemplate.mat'];
+    end
+
+    % get a nice environment
+    format short g;
+    clc
+    fg = spm_figure('Findwin','Graphics');
+    fi = spm_figure('Findwin','Interactive');
+    spm_figure('Clear',fg);
+    spm_figure('Clear',fi);
+    
+    disp(' ');
+    disp(['=== Welcome to ' mfilename ' ===']);
+    disp(' ');
+
+    %initialize spm
+    spm('defaults','fmri');
+    spm_jobman('initcfg');
+
+
+    % ==========================================================================================================
+    %                                          Get going
+    % ==========================================================================================================
+    
+    %get covariates string
+    if exist('covariates', 'var')
+        covar_string = ['_' char([covariates{:}])];
+    else
+        covar_string = '';
+    end
+    
+    if strcmp(measure, 'volume')
+        measure_string = '';
+    else
+        measure_string = ['_' measure];
+    end
+    
+    if exist('interaction', 'var')
+        int_string = ['_int' char(interaction)];
+    else
+        int_string = '';
+    end
+
+    if strcmp(sample, 'full')
+        sample_str = '';
+    else
+        sample_str = ['_' char(sample)];
+    end
+
+    % check if already processed
+    if exist([result_main_folder slash char(batch_model) '_tpm-' char(TPMname) sample_str int_string char(covar_string) char(measure_string) slash 'loc_' char(batch_model) sample_str int_string char(covar_string) char(measure_string) '_matlabbatch.mat'], 'file')
+        % subject complete
+        disp(' ');
+        disp(['  ... LOC_' char(batch_model) sample_str int_string char(covar_string) char(measure_string) '_matlabbatch.mat has already been run for tissue probability map:' char(TPMname)]);
+    else     
+        % start working on the subject
+        disp(' ');
+        disp(['  ... Running loc_' char(batch_model) char(sample_str) char(covar_string) char(measure_string) '_matlabbatch.mat for tissue probabiity map: ' char(TPMname)]);
+
+        %make QC directory
+        if ~exist([result_main_folder slash char(batch_model) '_tpm-' char(TPMname) sample_str int_string char(covar_string) char(measure_string)], 'dir')
+            mkdir([result_main_folder slash char(batch_model) '_tpm-' char(TPMname) sample_str int_string char(covar_string) char(measure_string)]);
+        end
+        
+        %load covars file
+        if strcmp(sample, 'full')
+            covars_tab = readtable([base_wd slash 'data' slash 'loc_covars.csv'], 'Delimiter', ',');
+        else
+            covars_tab = readtable([base_wd slash 'data' slash 'loc-matched_covars.csv'], 'Delimiter', ',');
+        end
+
+        covars_tab = covars_tab(covars_tab.iqr_ratio >= 80, :);
+        
+        %add full file paths to table
+        if strcmp(measure, 'volume')
+            path_string = @(v) [char(derivatives_wd) slash v '_' char(TPMname) slash ...
+                'mri' slash 'smwp1' v '_T1.nii,1'];
+            covars_tab.full_path = arrayfun(@(S) path_string(char(S)), covars_tab.parID, 'UniformOutput', false);
+        elseif strcmp(measure, 'density')
+            path_string = @(v) [char(derivatives_wd) slash v '_' char(TPMname) slash ...
+                'mri' slash 'wm' v '_T1.nii,1'];
+            covars_tab.full_path = arrayfun(@(S) path_string(char(S)), covars_tab.parID, 'UniformOutput', false);
+        elseif strcmp(measure, 'corticalthickness')
+            path_string = @(v) [char(derivatives_wd) slash v '_' char(TPMname) slash ...
+                'surf' slash 's15.mesh.thickness.resampled_32k.' v '_T1.gii'];
+            covars_tab.full_path = arrayfun(@(S) path_string(char(S)), covars_tab.parID, 'UniformOutput', false);
+        elseif strcmp(measure, 'GI')
+            path_string = @(v) [char(derivatives_wd) slash v '_' char(TPMname) slash ...
+                'surf' slash 's20.mesh.toroGI20mm.resampled_32k.' v '_T1.gii'];
+            covars_tab.full_path = arrayfun(@(S) path_string(char(S)), covars_tab.parID, 'UniformOutput', false);
+        elseif strcmp(measure, 'gyrification')
+            path_string = @(v) [char(derivatives_wd) slash v '_' char(TPMname) slash ...
+                'surf' slash 's20.mesh.gyrification.resampled_32k.' v '_T1.gii'];
+            covars_tab.full_path = arrayfun(@(S) path_string(char(S)), covars_tab.parID, 'UniformOutput', false);
+        elseif strcmp(measure, 'complexity')
+            path_string = @(v) [char(derivatives_wd) slash v '_' char(TPMname) slash ...
+                'surf' slash 's20.mesh.fractaldimension.resampled_32k.' v '_T1.gii'];
+            covars_tab.full_path = arrayfun(@(S) path_string(char(S)), covars_tab.parID, 'UniformOutput', false);
+        elseif strcmp(measure, 'SD')
+            path_string = @(v) [char(derivatives_wd) slash v '_' char(TPMname) slash ...
+                'surf' slash 's20.mesh.sqrtdepth.resampled_32k.' v '_T1.gii'];
+            covars_tab.full_path = arrayfun(@(S) path_string(char(S)), covars_tab.parID, 'UniformOutput', false);
+        end
+        
+        % ==========================================================================================================
+        %                                          create matlabbatch
+        % ==========================================================================================================
+        
+        %load matlab batch file
+        clear matlabbatch;
+        load(cat12_loc_batch);
+        
+        %results/working directory
+        matlabbatch{1,1}.spm.stats.factorial_design.dir = cellstr([result_main_folder slash char(batch_model) '_tpm-' char(TPMname) sample_str int_string char(covar_string) char(measure_string)]);
+       
+        %model specificiation
+        if strcmp(char(batch_model), '2sampleT')
+            if strcmp(char(factor), 'loc')
+                %LOC group
+                fact1_ind = strcmp(covars_tab.loc1, 'Yes');
+                matlabbatch{1,1}.spm.stats.factorial_design.des.t2.scans1 = covars_tab.full_path(fact1_ind);
+
+                %No LOC group
+                matlabbatch{1,1}.spm.stats.factorial_design.des.t2.scans2 = covars_tab.full_path(~fact1_ind);
+            
+            elseif strcmp(char(factor), 'OBstatus') || strcmp(char(factor), 'Obesity')
+                fact1_ind = strcmp(covars_tab.bmi_class, 'HW');
+
+                %OB group
+                matlabbatch{1,1}.spm.stats.factorial_design.des.t2.scans1 = covars_tab.full_path(fact1_ind);
+
+                %notOB group
+                matlabbatch{1,1}.spm.stats.factorial_design.des.t2.scans2 = covars_tab.full_path(~fact1_ind); 
+
+            elseif strcmp(char(factor), 'Sex') || strcmp(char(factor), 'sex')
+                fact1_ind = strcmp(covars_tab.sex, 'Male');
+
+                %boy
+                matlabbatch{1,1}.spm.stats.factorial_design.des.t2.scans1 = covars_tab.full_path(fact1_ind);
+
+                %girl
+                matlabbatch{1,1}.spm.stats.factorial_design.des.t2.scans2 = covars_tab.full_path(~fact1_ind); 
+
+            end
+         elseif strcmp(char(batch_model), 'ANOVA')
+            if strcmp(char(factor), 'loc')
+                fact1_ind = strcmp(covars_tab.loc1, 'Yes');
+            elseif strcmp(char(factor), 'OBstatus') || strcmp(char(factor), 'Obesity')
+                fact1_ind = strcmp(covars_tab.bmi_class == 'HW');
+            elseif strcmp(char(factor), 'Sex') || strcmp(char(factor), 'sex')
+                fact1_ind = strcmp(covars_tab.sex, 'Male');
+            end
+            
+            matlabbatch{1,1}.spm.stats.factorial_design.des.fd.fact(1).name = char(factor);
+
+            if exist('interaction', 'var')
+
+                if strcmp(interaction, 'OBstatus') || strcmp(interaction, 'Obesity')
+                    OB_ind = strcmp(covars_tab.bmi_class, 'HW');
+
+                    %Factor1 - OB group
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(1).scans = covars_tab.full_path(fact1_ind & OB_ind);
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(1).levels = [1,1];
+
+                    %Factor1 - not OB group
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(2).scans = covars_tab.full_path(fact1_ind & ~OB_ind); 
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(2).levels = [1,2];
+
+                    %Not Factor1 - OB group
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(3).scans = covars_tab.full_path(~fact1_ind & OB_ind);
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(3).levels = [2,1];
+
+                    %Not Factor1 - not OB group
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(4).scans = covars_tab.full_path(~fact1_ind & ~OB_ind); 
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(4).levels = [2,2];
+
+                    %Factor1
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.fact(2) = matlabbatch{1,1}.spm.stats.factorial_design.des.fd.fact;
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.fact(2).name = 'OBstatus';
+
+                elseif strcmp(interaction, 'Sex') || strcmp(interaction, 'sex')
+                    %Boy
+                    sex_ind = strcmp(covars_tab.sex,'Male');
+
+                    %Factor1 - boy
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(1).scans = covars_tab.full_path(fact1_ind & sex_ind);
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(1).levels = [1,1];
+
+                    %Factor1 - girl
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(2).scans = covars_tab.full_path(fact1_ind & ~sex_ind); 
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(2).levels = [1,2];
+
+                    %Not Factor1 - boy
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(3).scans = covars_tab.full_path(~fact1_ind & sex_ind);
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(3).levels = [2,1];
+
+                    %Not Factor1 - girl
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(4).scans = covars_tab.full_path(~fact1_ind & ~sex_ind); 
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(4).levels = [2,2];
+
+                    %Factor1
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.fact(2) = matlabbatch{1,1}.spm.stats.factorial_design.des.fd.fact;
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.fact(2).name = 'Sex';
+                
+                else
+                    %Factor1 group
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(1).scans = covars_tab.full_path(fact1_ind);
+
+                    %Not Factor1 group
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(2).scans = covars_tab.full_path(~fact1_ind); 
+                end
+            else
+                %Factor1 group
+                matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(1).scans = covars_tab.full_path(fact1_ind);
+
+                %Not Factor1 group
+                matlabbatch{1,1}.spm.stats.factorial_design.des.fd.icell(2).scans = covars_tab.full_path(~fact1_ind); 
+            end
+        elseif strcmp(char(batch_model), 'Reg')
+            matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.scans = covars_tab.full_path; 
+        end
+        
+        if strcmp(measure, 'corticalthickness')
+            matlabbatch{1, 1}.spm.stats.factorial_design.masking.tm.tm_none = 1;
+            matlabbatch{1, 1}.spm.stats.factorial_design.masking.tm = rmfield(matlabbatch{1, 1}.spm.stats.factorial_design.masking.tm, 'tma');
+        end
+        
+        if exist('interaction', 'var')
+            if strcmp(char(batch_model), 'ANOVA')
+                
+                %if interaction is a factor and using ANOVA dont add as
+                %covariate - added above as factor
+                if strcmp(interaction, 'OBstatus') || strcmp(interaction, 'Obesity') || strcmp(interaction, 'Sex') || strcmp(interaction, 'sex')
+                    add_covar = 0;
+                else
+                    add_covar = 1;
+                end
+            end
+        else
+            add_covar = 0;
+        end
+        
+        %covariates
+        if exist('covariates', 'var')
+            if strcmp(batch_model, 'Reg')
+                nbatch_cov = length({matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov});
+                ncov = length(covariates) + add_covar;
+            else
+                nbatch_cov = length(matlabbatch{1,1}.spm.stats.factorial_design.cov);
+                ncov = length(covariates) + add_covar;
+            end
+        else
+           nbatch_cov = length(matlabbatch{1,1}.spm.stats.factorial_design.cov);
+           ncov = add_covar;
+        end
+        
+        if strcmp(batch_model, 'Reg')
+            %add one because 1st is intercept
+            con_num = 0;
+            
+            for con=1:length(covariates)
+                contrast_mat_pos = zeros(1, ncov+1);
+                contrast_mat_neg = zeros(1, ncov+1);
+            
+                if ~strcmp(char(covariates{con}), 'TIV') && ~strcmp(char(covariates{con}), 'tiv')
+                    con_num = con_num + 1;
+                    contrast_mat_pos(con+1) =  1;
+                    contrast_mat_neg(con+1) = -1; 
+
+                    matlabbatch{1,4}.spm.stats.con.consess{1, con_num}.tcon.name = [char(covariates{con}) '_pos'];
+                    matlabbatch{1,4}.spm.stats.con.consess{1, con_num}.tcon.sessrep = char('none');
+                    matlabbatch{1,4}.spm.stats.con.consess{1, con_num}.tcon.weights = contrast_mat_pos;
+
+                    con_num = con_num + 1;
+                    matlabbatch{1,4}.spm.stats.con.consess{1, con_num}.tcon.name = [char(covariates{con}) '_neg'];
+                    matlabbatch{1,4}.spm.stats.con.consess{1, con_num}.tcon.sessrep = char('none');
+                    matlabbatch{1,4}.spm.stats.con.consess{1, con_num}.tcon.weights = contrast_mat_neg;
+                    
+                    if exist('interaction', 'var')
+                        contrast_mat_int = [zeros(1, ncov+1);zeros(1, ncov+1)];
+                        contrast_mat_int(1, con+1) = 1;
+                        contrast_mat_int(2, con+1) = -1;
+                        contrast_mat_int(1, length(covariates)+2) = -1;
+                        contrast_mat_int(2, length(covariates)+2) = 1;
+                        
+                        con_num = con_num + 1;
+                        matlabbatch{1,4}.spm.stats.con.consess{1, con_num}.fcon.name = [char(covariates{con}) int_string];
+                        matlabbatch{1,4}.spm.stats.con.consess{1, con_num}.fcon.sessrep = char('none');
+                        matlabbatch{1,4}.spm.stats.con.consess{1, con_num}.fcon.weights = contrast_mat_int;
+                    
+                    end
+                end
+            end
+            
+            if ncov < nbatch_cov 
+                if ncov == 0
+                   fprintf('No covariates entered for Regression.');
+                else
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov = matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(1:ncov);
+                end
+            elseif ncov > nbatch_cov
+                for extra = 1:(ncov - nbatch_cov)
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(nbatch_cov + extra) = matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(1);
+                end
+            end
+            
+        elseif ncov < nbatch_cov 
+            if ncov == 0
+               matlabbatch{1,1}.spm.stats.factorial_design.cov = struct([]);
+            else
+                matlabbatch{1,1}.spm.stats.factorial_design.cov = matlabbatch{1,1}.spm.stats.factorial_design.cov(1:ncov);
+            end
+        elseif ncov > nbatch_cov
+            for extra = 1:(ncov - nbatch_cov)
+                matlabbatch{1,1}.spm.stats.factorial_design.cov(nbatch_cov + extra) = matlabbatch{1,1}.spm.stats.factorial_design.cov(1);
+            end
+        end
+        
+        if exist('interaction', 'var')
+            if strcmp(batch_model, 'ANOVA')
+                if strcmp(interaction, 'OBstatus') || strcmp(interaction, 'Obesity') || strcmp(interaction, 'Sex') || strcmp(interaction, 'sex')
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 1}.fcon.name = ['ME' int_string];
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 1}.fcon.sessrep = char('none');
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 1}.fcon.weights = [1,-1,1,-1];
+                    
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 2}.tcon.name = ['posME' int_string];
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 2}.tcon.sessrep = char('none');
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 2}.tcon.weights = [1,-1,1,-1];
+                    
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 3}.tcon.name = ['negME' int_string];
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 3}.tcon.sessrep = char('none');
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 3}.tcon.weights = [-1,1,-1,1];
+                    
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 4}.fcon.name = ['ME_LOC'];
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 4}.fcon.sessrep = char('none');
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 4}.fcon.weights = [-1,-1,1,1];
+                    
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 5}.tcon.name = ['negME_LOC'];
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 5}.tcon.sessrep = char('none');
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 5}.tcon.weights = [-1,-1,1,1];
+                    
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 6}.fcon.name = ['LOC' int_string];
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 6}.fcon.sessrep = char('none');
+                    %matlabbatch{1,4}.spm.stats.con.consess{1, 6}.fcon.weights = [1,-1,-1,1; -1,1,1,-1];
+                    matlabbatch{1,4}.spm.stats.con.consess{1, 6}.fcon.weights = [1,-1,-1,1];
+                else
+                    newcon_num = length(matlabbatch{1,4}.spm.stats.con.consess) + 1;
+                    matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num}.fcon.name = ['LOC' int_string];
+                    matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num}.fcon.sessrep = char('none');
+                    %matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num}.fcon.weights = [1,-1,-1,1; -1,1,1,-1];
+                    matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num}.fcon.weights = [1,-1,-1,1];
+                    
+                    matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+1}.fcon.name = ['ME' int_string];
+                    matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+1}.fcon.sessrep = char('none');
+                    matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+1}.fcon.weights = [0,0,1,-1];
+                    
+                    matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+2}.tcon.name = ['posME' int_string];
+                    matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+2}.tcon.sessrep = char('none');
+                    matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+2}.tcon.weights = [0,0,1,1];
+                    
+                    matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+3}.tcon.name = ['negME' int_string];
+                    matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+3}.tcon.sessrep = char('none');
+                    matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+3}.tcon.weights = [0,0,-1,-1];
+                end
+            elseif ~strcmp(batch_model, 'Reg')
+                newcon_num = length(matlabbatch{1,4}.spm.stats.con.consess) + 1;
+                matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num}.fcon.name = ['LOC' int_string];
+                matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num}.fcon.sessrep = char('none');
+                %matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num}.fcon.weights = [1,-1,-1,1; -1,1,1,-1];
+                matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num}.fcon.weights = [1,-1,-1,1];
+                
+                matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+1}.fcon.name = ['ME' int_string];
+                matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+1}.fcon.sessrep = char('none');
+                matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+1}.fcon.weights = [0,0,1,1];
+                
+                matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+2}.tcon.name = ['posME' int_string];
+                matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+2}.tcon.sessrep = char('none');
+                matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+2}.tcon.weights = [0,0,1,1];
+
+                matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+3}.tcon.name = ['negME' int_string];
+                matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+3}.tcon.sessrep = char('none');
+                matlabbatch{1,4}.spm.stats.con.consess{1, newcon_num+3}.tcon.weights = [0,0,-1,-1];
+            end
+        end
+       
+        for c=1:ncov
+            
+            if exist('interaction', 'var')
+                if strcmp(batch_model, 'ANOVA')
+                    if strcmp(interaction, 'OBstatus') || strcmp(interaction, 'Obesity') || strcmp(interaction, 'Sex') || strcmp(interaction, 'sex')
+                    	cov_str = char(cellstr(covariates(c)));
+                        matlabbatch{1,1}.spm.stats.factorial_design.cov(c).iCFI = 1;
+                    else
+                        if c == 1
+                            cov_str = char(interaction);
+                            matlabbatch{1,1}.spm.stats.factorial_design.cov(c).iCFI = 2;
+                        else
+                            cov_str = char(cellstr(covariates(c - 1)));
+                            matlabbatch{1,1}.spm.stats.factorial_design.cov(c).iCFI = 1;
+                        end
+                    end
+                elseif ~strcmp(batch_model, 'Reg')
+                    if c == 1
+                        cov_str = char(interaction);
+                        matlabbatch{1,1}.spm.stats.factorial_design.cov(c).iCFI = 2;
+                    else
+                        cov_str = char(cellstr(covariates(c - 1)));
+                        matlabbatch{1,1}.spm.stats.factorial_design.cov(c).iCFI = 1;
+                    end
+                else
+                    if c == ncov
+                        cov_str = char(interaction);
+                    else
+                        cov_str = char(cellstr(covariates(c)));
+                    end
+                end
+            else
+                cov_str = char(cellstr(covariates(c)));
+                if ~strcmp(batch_model, 'Reg')
+                    matlabbatch{1,1}.spm.stats.factorial_design.cov(c).iCFI = 1;
+                end
+            end
+            
+            if ~strcmp(batch_model, 'Reg')
+                matlabbatch{1,1}.spm.stats.factorial_design.cov(c).cname = cov_str;
+                
+                if ~strcmp(cov_str, 'TIV') && ~strcmp(cov_str, 'tiv')
+                    if strcmp(measure, 'volume')
+                        matlabbatch{1,1}.spm.stats.factorial_design.globalc.g_user.global_uval = [covars_tab.tiv(fact1_ind); covars_tab.tiv(~fact1_ind)]; 
+                        matlabbatch{1,1}.spm.stats.factorial_design.globalm.gmsca.gmsca_yes.gmscv = mean(covars_tab.tiv);
+                    end
+                end
+                    
+                if strcmp(cov_str, 'TIV') || strcmp(cov_str, 'tiv')
+                    matlabbatch{1,1}.spm.stats.factorial_design.cov(c).c = [covars_tab.tiv(fact1_ind); covars_tab.tiv(~fact1_ind)];  
+                elseif strcmp(cov_str, 'age') || strcmp(cov_str, 'Age')
+                    matlabbatch{1,1}.spm.stats.factorial_design.cov(c).c = [covars_tab.age_yr(fact1_ind); covars_tab.age_yr(~fact1_ind)];  
+                elseif strcmp(cov_str, 'sex') || strcmp(cov_str, 'Sex')
+                    matlabbatch{1,1}.spm.stats.factorial_design.cov(c).c = [covars_tab.sex_dummy(fact1_ind); covars_tab.sex_dummy(~fact1_ind)];  
+                elseif strcmp(cov_str, 'BMIperc') || strcmp(cov_str, 'BMIp')
+                    matlabbatch{1,1}.spm.stats.factorial_design.cov(c).c = [covars_tab.bmi_p(fact1_ind); covars_tab.bmi_p(~fact1_ind)];  
+                elseif strcmp(cov_str, 'BMI')
+                    matlabbatch{1,1}.spm.stats.factorial_design.cov(c).c = [covars_tab.bmi(fact1_ind); covars_tab.bmi(~fact1_ind)];  
+                elseif strcmp(cov_str, 'IQR') || strcmp(cov_str, 'iqr')
+                    matlabbatch{1,1}.spm.stats.factorial_design.cov(c).c = [covars_tab.iqr_ratio(fact1_ind); covars_tab.iqr_ratio(~fact1_ind)];  
+                elseif strcmp(cov_str, 'sex') || strcmp(cov_str, 'Sex')
+                    matlabbatch{1,1}.spm.stats.factorial_design.cov(c).c = [covars_tab.sex(fact1_ind); covars_tab.sex_dummy(~fact1_ind)];  
+                elseif strcmp(cov_str, 'study') || strcmp(cov_str, 'Study')
+                    matlabbatch{1,1}.spm.stats.factorial_design.cov(c).c = [covars_tab.study_dummy(fact1_ind); covars_tab.study_dummy(~fact1_ind)];  
+                elseif strcmp(cov_str, 'OBstatus') || strcmp(cov_str, 'Obesity') || strcmp(cov_str, 'obesity')
+                    matlabbatch{1,1}.spm.stats.factorial_design.cov(c).c = [covars_tab.bmi_hw_dummy(fact1_ind); covars_tab.bmi_hw_dummy(~fact1_ind)];
+                elseif strcmp(cov_str, 'p85th') || strcmp(cov_str, 'cdc_p85th')
+                    matlabbatch{1,1}.spm.stats.factorial_design.cov(c).c = [covars_tab.p_bmi85(fact1_ind); covars_tab.p_bmi85(~fact1_ind)];
+                elseif strcmp(cov_str, 'p95th') || strcmp(cov_str, 'cdc_p95th')
+                    matlabbatch{1,1}.spm.stats.factorial_design.cov(c).c = [covars_tab.p_bmi95(fact1_ind); covars_tab.p_bmi95(~fact1_ind)];
+                end
+            else
+                matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(c).cname = cov_str;
+                
+                if strcmp(cov_str, 'TIV') || strcmp(cov_str, 'tiv')
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(c).c = covars_tab.tiv;
+                elseif strcmp(cov_str, 'age') || strcmp(cov_str, 'Age')
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(c).c = covars_tab.age_yr;  
+                elseif strcmp(cov_str, 'sex') || strcmp(cov_str, 'Sex')
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(c).c = covars_tab.sex_dummy;  
+                elseif strcmp(cov_str, 'BMIperc') || strcmp(cov_str, 'BMIp')
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(c).c = covars_tab.bmi_p;  
+                elseif strcmp(cov_str, 'BMI')
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(c).c = covars_tab.bmi;
+                elseif strcmp(cov_str, 'IQR') || strcmp(cov_str, 'iqr')
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(c).c = covars_tab.iqr_ratio;  
+               elseif strcmp(cov_str, 'Study') || strcmp(cov_str, 'study')
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(c).c = covars_tab.study;  
+                elseif strcmp(cov_str, 'LOC') || strcmp(cov_str, 'loc')
+                    covars_tab.loc1_dummy = strcmp(covars_tab.loc1, 'Yes');
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(c).c = double(covars_tab.loc1_dummy);  
+                elseif strcmp(cov_str, 'OBstatus') || strcmp(cov_str, 'Obesity') || strcmp(cov_str, 'obesity')
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(c).c = covars_tab.bmi_hw_dummy;
+                elseif strcmp(cov_str, 'p85th') || strcmp(cov_str, 'cdc_p85th')
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(c).c = covars_tab.p_bmi85;
+                elseif strcmp(cov_str, 'p95th') || strcmp(cov_str, 'cdc_p95th')
+                    matlabbatch{1,1}.spm.stats.factorial_design.des.mreg.mcov(c).c = covars_tab.p_bmi95;
+                end
+            end       
+        end
+        
+        %check for gloabl scaling
+        
+
+
+        % ==========================================================================================================
+        %                                          Run matlabbatch
+        % ==========================================================================================================
+       
+        %save batch .mat file 
+        
+        save([result_main_folder slash char(batch_model) '_tpm-' char(TPMname) sample_str int_string char(covar_string) char(measure_string) slash 'loc_' char(batch_model) int_string char(covar_string) char(measure_string) '_matlabbatch.mat'],'matlabbatch');
+        
+        %run the batch
+        spm_jobman('run', matlabbatch);
+        
+        % ==========================================================================================================
+        %                                          Housekeeping
+        % ==========================================================================================================
+
+        % say goodbye
+        disp(['   ... thank you for using this script and']);
+        disp(['=== Have a nice day ===']);
+        disp(' ');
+    end
+
+    % reset data format
+    format;
+    return;
+end
