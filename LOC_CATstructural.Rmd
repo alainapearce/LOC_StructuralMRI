@@ -1,0 +1,221 @@
+---
+title: "LOC Structural"
+output:
+  pdf_document: default
+  html_document: default
+    # toc: true
+    # toc_depth: 2
+    # number_sections: true
+header-includes:
+- \usepackage{fullpage}
+- \usepackage{graphicx}
+- \usepackage{subcaption}
+- \usepackage{float}
+- \usepackage{placeins}
+- \usepackage{caption}
+- \usepackage{mathtools}
+# - \usepackage{rotating}
+- \usepackage{multirow}
+- \usepackage{amssymb}
+- \usepackage{amsmath}
+- \usepackage{bigstrut}
+- \usepackage{geometry}
+# - \usepackage{longtable}
+# - \usepackage{lscape}
+- \usepackage{pdflscape}
+---
+
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(tidy = TRUE, tidy.opts = list(comment = FALSE), echo = TRUE, fig.width=6, fig.height=4, fig.path='figs/fig-', echo=FALSE, warning=FALSE, message=FALSE, comment = NA)
+```
+
+<!-- load startup file and any extra packages -->
+```{r load, echo=FALSE, include=TRUE}
+library(knitr)
+library(kableExtra)
+library(MatchIt)
+library(gtsummary)
+theme_gtsummary_compact()
+
+library(ggplot2)
+library(ggpubr)
+
+#source('1_compile_data.R')
+#source('2_matched_sample.R')
+
+source('functions.R')
+source('setup.R')
+source('analyses.R')
+source('tables.R')
+
+```
+
+# Participant Characteristics
+
+
+<!-- I like to include all the code for the individual participant characteristic tests just so it is easy to go back to if needed. I just hide output, etc for the document. -->
+
+```{r demo_tab, echo=FALSE, results='asis'}
+as_kable_extra(demo_merge_tab, caption = 'Demographics', format = "latex", booktabs = TRUE, longtable = FALSE) %>%
+  kableExtra::kable_styling(latex_options = "hold_position",  full_width = FALSE)
+```
+
+\FloatBarrier
+
+<!-- Age -->
+```{r Age_ttest_loc, echo=FALSE, include=TRUE}
+age_ttest
+sd.function.na(loc_dat, loc_dat[['age_yr']], loc_dat[['loc1']])
+```
+\
+
+<!-- BMI-Z -->
+```{r BMI_ttest_loc, echo=FALSE, include=TRUE}
+bmi_ttest
+sd.function.na(loc_dat, loc_dat[['bmi']], loc_dat[['loc1']])
+```
+\
+
+<!-- BMI percentile -->
+```{r BMIp_ttest_loc, echo=FALSE, include=TRUE}
+bmip_ttest
+sd.function.na(loc_dat, loc_dat[['bmi_p']], loc_dat[['loc1']])
+```
+\
+
+<!-- BMI Zscore -->
+```{r BMIz_ttest_loc, echo=FALSE, include=TRUE}
+bmiz_ttest
+sd.function.na(loc_dat, loc_dat[['bmi_z']], loc_dat[['loc1']])
+```
+
+\
+<!-- Sex -->
+```{r sex_chi_loc, echo=FALSE, include=TRUE}
+sex_chi
+```
+\
+
+<!-- Race -->
+```{r race_fisher_loc, echo=FALSE, include=TRUE}
+race_fisher
+```
+\
+
+<!-- Ethnicity -->
+```{r ethnicity_fisher_loc, echo=FALSE, include=TRUE}
+ethnicity_fisher
+```
+\
+
+<!-- Income -->
+```{r SES_chi_loc, echo=FALSE, include=TRUE}
+income_chi
+```
+\
+
+<!-- Maternal Ed -->
+```{r mED_chi_loc, echo=FALSE, include=TRUE}
+mom_ed_chi
+```
+
+\
+\newpage
+
+# MRI quality
+
+<!-- cor matrix -->
+```{r mri_demo_cormat, echo=FALSE, include=TRUE}
+cor_mat_mri
+```
+\
+
+<!-- TIV -->
+```{r tiv_ttest_loc, echo=FALSE, include=TRUE}
+tiv_ttest
+sd.function.na(loc_dat, loc_dat[['tiv']], loc_dat[['loc1']])
+```
+\
+
+<!-- IQR Ratio -->
+```{r iqr_ttest_loc, echo=FALSE, include=TRUE}
+iqr_ratio_ttest
+sd.function.na(loc_dat, loc_dat[['iqr_ratio']], loc_dat[['loc1']])
+```
+\
+
+<!-- TIV -->
+```{r tiv_ttest_sex, echo=FALSE, include=TRUE}
+tiv_ttest_sex
+sd.function.na(loc_dat, loc_dat[['tiv']], loc_dat[['sex']])
+```
+\
+
+<!-- IQR Ratio -->
+```{r iqr_ttest_sex, echo=FALSE, include=TRUE}
+iqr_ratio_ttest_sex
+sd.function.na(loc_dat, loc_dat[['iqr_ratio']], loc_dat[['sex']])
+```
+\
+\clearpage
+\FloatBarrier
+
+# Matched Sample
+
+```{r demo_tab_matched, echo=FALSE, results='asis'}
+as_kable_extra(demo_merge_matched_tab, caption = 'Demographics - Matched Subset', format = "latex", booktabs = TRUE, longtable = FALSE) %>%
+  kableExtra::kable_styling(latex_options = "hold_position",  full_width = FALSE)
+```
+
+\FloatBarrier
+
+
+```{r matched_gmv_ofc, echo=FALSE, results='asis'}
+kable(round(ofc_sum$coefficients, digits = 3), "latex",  digits = 3, caption = 'Grey Matter Volume - OFC', booktabs=TRUE) %>%
+  kable_styling(latex_options = c("HOLD_position", "repeat_header"))
+```
+
+\FloatBarrier
+
+```{r matched_gmv_phg, echo=FALSE, results='asis'}
+kable(round(phg_sum$coefficients, digits = 3), "latex",  digits = 3, caption = 'Grey Matter Volume - Parahippocampal Gyrus', booktabs=TRUE) %>%
+  kable_styling(latex_options = c("HOLD_position", "repeat_header"))
+```
+
+\FloatBarrier
+
+```{r matched_gmv_cerebellum, echo=FALSE, results='asis'}
+kable(round(cerebellum_sum$coefficients, digits = 3), "latex",  digits = 3, caption = 'Grey Matter Volume - Cerebellum Lobule IV', booktabs=TRUE) %>%
+  kable_styling(latex_options = c("HOLD_position", "repeat_header"))
+```
+
+\FloatBarrier
+
+```{r matched_gmv_ca4, echo=FALSE, results='asis'}
+kable(round(CA4_sum$coefficients, digits = 3), "latex",  digits = 3, caption = 'Grey Matter Volume - CA4', booktabs=TRUE) %>%
+  kable_styling(latex_options = c("HOLD_position", "repeat_header"))
+```
+
+\FloatBarrier
+
+```{r matched_sd_acc, echo=FALSE, results='asis'}
+kable(round(sd_acc_sum$coefficients, digits = 3), "latex",  digits = 3, caption = 'Sulci Depth - ACC', booktabs=TRUE) %>%
+  kable_styling(latex_options = c("HOLD_position", "repeat_header"))
+```
+
+\FloatBarrier
+
+```{r matched_sd_cuneu, echo=FALSE, results='asis'}
+kable(round(sd_cuneus_sum$coefficients, digits = 3), "latex",  digits = 3, caption = 'Sulci Depth - Cuneus', booktabs=TRUE) %>%
+  kable_styling(latex_options = c("HOLD_position", "repeat_header"))
+```
+
+\FloatBarrier
+
+```{r matched_fd_insula, echo=FALSE, results='asis'}
+kable(round(fd_linsula_sum$coefficients, digits = 3), "latex",  digits = 3, caption = 'Cortical Complexity - Insula', booktabs=TRUE) %>%
+  kable_styling(latex_options = c("HOLD_position", "repeat_header"))
+```
+
+\FloatBarrier

@@ -1,0 +1,9 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+figs/*.nii
+Data/All_data.csv
+Data/*.nii
+Data/*.gii
+Data/tpm-all_qc_data.csv

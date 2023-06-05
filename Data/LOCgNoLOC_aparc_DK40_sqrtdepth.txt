@@ -1,0 +1,37 @@
+Analysis of sqrtdepth in aparc_DK40 atlas using contrast ME_LOCgNoLOC from SPM.mat in 
+/gpfs/group/klk37/default/MRIstruct/analyses/loc_frontiers/cat12_models/ANOVA_tpm-all_agesexOBstatusstudy_SD
+____________________________________________________________________________________________________
+
+left hemisphere (P<0.05, uncorrected):
+  P-value	  T-value	 Ze-value	aparc_DK40
+ 0.000895	 3.185579	 3.123173	rostralanteriorcingulate
+ 0.012120	 2.278565	 2.253307	rostralmiddlefrontal
+ 0.014611	 2.203598	 2.180467	lingual
+ 0.016958	 2.142555	 2.121062	unknown
+ 0.017753	 2.123550	 2.102551	precuneus
+ 0.018304	 2.110793	 2.090120	paracentral
+ 0.026016	 1.959940	 1.942866	parstriangularis
+ 0.031237	 1.878242	 1.862921	middletemporal
+ 0.031972	 1.867670	 1.852566	bankssts
+ 0.034236	 1.836355	 1.821882	lateraloccipital
+ 0.045784	 1.699115	 1.687188	cuneus
+
+left hemisphere (P<0.05, Holm-Bonferroni corrected):
+  P-value	  T-value	 Ze-value	aparc_DK40
+ 0.045623	 3.185579	 3.123173	rostralanteriorcingulate
+ 0.045784	 1.699115	 1.687188	cuneus
+
+
+right hemisphere (P<0.05, uncorrected):
+  P-value	  T-value	 Ze-value	aparc_DK40
+ 0.011508	 2.299042	 2.273181	paracentral
+ 0.025859	 1.962606	 1.945472	transversetemporal
+ 0.029174	 1.909035	 1.893069	caudalanteriorcingulate
+ 0.030468	 1.889517	 1.873962	insula
+ 0.034634	 1.831037	 1.816669	bankssts
+ 0.048234	 1.673712	 1.662219	superiortemporal
+
+No results found for FDR corrected threshold of P<0.05.
+
+Label file with thresholded logP values (uncorrected) was saved as /gpfs/group/klk37/default/MRIstruct/analyses/loc_frontiers/cat12_models/ANOVA_tpm-all_agesexOBstatusstudy_SD/mesh.logP5_ME_LOCgNoLOC_aparc_DK40_sqrtdepth.gii.
+Label file with thresholded logP values (Holm-Bonferroni corrected) was saved as /gpfs/group/klk37/default/MRIstruct/analyses/loc_frontiers/cat12_models/ANOVA_tpm-all_agesexOBstatusstudy_SD/mesh.logPHolm5_ME_LOCgNoLOC_aparc_DK40_sqrtdepth.gii.

@@ -1,0 +1,19 @@
+Analysis of gyrification in aparc_DK40 atlas using contrast ME_LOCgNoLOC from SPM.mat in 
+/gpfs/group/klk37/default/MRIstruct/analyses/loc_frontiers/cat12_models/ANOVA_tpm-all_agesexOBstatusstudy_gyrification
+____________________________________________________________________________________________________
+
+left hemisphere (P<0.05, uncorrected):
+  P-value	  T-value	 Ze-value	aparc_DK40
+ 0.015589	 2.177213	 2.154801	frontalpole
+
+
+right hemisphere (P<0.05, uncorrected):
+  P-value	  T-value	 Ze-value	aparc_DK40
+ 0.011317	 2.305598	 2.279540	pericalcarine
+ 0.035987	 1.813301	 1.799280	transversetemporal
+ 0.048853	 1.667464	 1.656076	parstriangularis
+
+No results found for FDR corrected threshold of P<0.05.
+No results found for Holm-Bonferroni corrected threshold of P<0.05.
+
+Label file with thresholded logP values (uncorrected) was saved as /gpfs/group/klk37/default/MRIstruct/analyses/loc_frontiers/cat12_models/ANOVA_tpm-all_agesexOBstatusstudy_gyrification/mesh.logP5_ME_LOCgNoLOC_aparc_DK40_gyrification.gii.

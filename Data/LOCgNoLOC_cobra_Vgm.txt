@@ -1,0 +1,48 @@
+Analysis of Vgm in cobra atlas using contrast ME_LOCgNoLOC from SPM.mat in 
+/gpfs/group/klk37/default/MRIstruct/analyses/loc_frontiers/cat12_models/ANOVA_tpm-all_mask-cerebellum_tivagesexOBstatusstudy
+____________________________________________________________________________________________________
+
+left hemisphere (P<0.05, uncorrected):
+  P-value	 contrast	  T-value	 Ze-value	cobra
+ 0.001782	  inverse	-2.966151	-2.914457	Stratum
+ 0.001797	  inverse	-2.963367	-2.911805	CA4
+ 0.006342	  inverse	-2.525963	-2.492498	GloPal
+ 0.007405	  inverse	-2.468433	-2.436969	Striatum
+ 0.008289	  inverse	-2.425976	-2.395935	HCA1
+ 0.031932	  inverse	-1.868353	-1.853126	SupPostCerebLVI
+ 0.034448	  inverse	-1.833631	-1.819107	SupPostCerebCII
+ 0.042019	  inverse	-1.740476	-1.727726	SupPostCerebCI
+
+left hemisphere (P<0.05, FDR corrected):
+  P-value	 contrast	  T-value	 Ze-value	cobra
+ 0.022957	  inverse	-2.966151	-2.914457	Stratum
+ 0.022957	  inverse	-2.963367	-2.911805	CA4
+ 0.049734	  inverse	-2.525963	-2.492498	GloPal
+ 0.049734	  inverse	-2.468433	-2.436969	Striatum
+ 0.049734	  inverse	-2.425976	-2.395935	HCA1
+
+left hemisphere (P<0.05, Holm-Bonferroni corrected):
+  P-value	 contrast	  T-value	 Ze-value	cobra
+ 0.003593	  inverse	-2.963367	-2.911805	CA4
+ 0.031932	  inverse	-1.868353	-1.853126	SupPostCerebLVI
+
+
+right hemisphere (P<0.05, uncorrected):
+  P-value	 contrast	  T-value	 Ze-value	cobra
+ 0.001800	  inverse	-2.962780	-2.911246	Sub
+ 0.002186	  inverse	-2.898487	-2.849945	Striatum
+ 0.011177	  inverse	-2.310693	-2.284294	Stratum
+ 0.020888	  inverse	-2.055177	-2.035747	AntCerebLIII
+ 0.035147	  inverse	-1.824347	-1.810007	SupPostCerebCII
+ 0.045517	  inverse	-1.702028	-1.689964	SupPostCerebLVIIB
+ 0.048607	  inverse	-1.670022	-1.658508	SupPostCerebCI
+
+right hemisphere (P<0.05, FDR corrected):
+  P-value	 contrast	  T-value	 Ze-value	cobra
+ 0.022957	  inverse	-2.962780	-2.911246	Sub
+ 0.022957	  inverse	-2.898487	-2.849945	Striatum
+
+
+Label file with thresholded logP values (uncorrected) was saved as /gpfs/group/klk37/default/MRIstruct/analyses/loc_frontiers/cat12_models/ANOVA_tpm-all_mask-cerebellum_tivagesexOBstatusstudy/logP5_ME_LOCgNoLOC_cobra_Vgm.nii.
+Label file with thresholded logP values (FDR corrected) was saved as /gpfs/group/klk37/default/MRIstruct/analyses/loc_frontiers/cat12_models/ANOVA_tpm-all_mask-cerebellum_tivagesexOBstatusstudy/logPFDR5_ME_LOCgNoLOC_cobra_Vgm.nii.
+Label file with thresholded logP values (Holm-Bonferroni corrected) was saved as /gpfs/group/klk37/default/MRIstruct/analyses/loc_frontiers/cat12_models/ANOVA_tpm-all_mask-cerebellum_tivagesexOBstatusstudy/logPHolm5_ME_LOCgNoLOC_cobra_Vgm.nii.
