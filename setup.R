@@ -114,4 +114,6 @@ loc_matched_dat[['ethnicity']] <- ifelse(loc_matched_dat[['ethnicity']] == 'chec
 
 # restrict to IQR ratio > 80
 loc_dat <- loc_dat[loc_dat[['iqr_ratio']] >= 80, ]
+loc_dat$bmi_z <- sds(loc_dat$bmi, age = loc_dat$age_yr, sex = loc_dat$sex, male = "Male", female = "Female", ref = cdc.ref, item = "bmi", type = "SDS")
+
 loc_matched_dat <- loc_matched_dat[loc_matched_dat[['iqr_ratio']] >= 80, ]
