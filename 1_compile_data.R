@@ -151,4 +151,6 @@ LOCstructural_covars <- LOCstructural_covars[LOCstructural_covars$iqr_ratio >= 7
 
 #reduce to 'keep' and write out dsets
 write.csv(LOCstructural_covars[c('lab_id', 'parID')], 'Data/loc_parlist.csv', row.names = F)
+
+LOCstructural_covars$age_yr = round(LOCstructural_covars$age_yr, 1)
 write.csv(LOCstructural_covars, 'Data/loc_covars.csv', row.names = F)
